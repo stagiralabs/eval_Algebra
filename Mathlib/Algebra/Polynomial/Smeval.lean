@@ -1,0 +1,290 @@
+import VerifiedAgora.tagger
+/-
+Copyright (c) 2023 Scott Carnahan. All rights reserved.
+Released under Apache 2.0 license as described in the file LICENSE.
+Authors: Scott Carnahan
+-/
+import Mathlib.Algebra.Group.NatPowAssoc
+import Mathlib.Algebra.Polynomial.AlgebraMap
+import Mathlib.Algebra.Polynomial.Eval.SMul
+
+/-!
+# Scalar-multiple polynomial evaluation
+
+This file defines polynomial evaluation via scalar multiplication.  Our polynomials have
+coefficients in a semiring `R`, and we evaluate at a weak form of `R`-algebra, namely an additive
+commutative monoid with an action of `R` and a notion of natural number power.  This
+is a generalization of `Algebra.Polynomial.Eval`.
+
+## Main definitions
+
+* `Polynomial.smeval`: function for evaluating a polynomial with coefficients in a `Semiring`
+`R` at an element `x` of an `AddCommMonoid` `S` that has natural number powers and an `R`-action.
+* `smeval.linearMap`: the `smeval` function as an `R`-linear map, when `S` is an `R`-module.
+* `smeval.algebraMap`: the `smeval` function as an `R`-algebra map, when `S` is an `R`-algebra.
+
+## Main results
+
+* `smeval_monomial`: monomials evaluate as we expect.
+* `smeval_add`, `smeval_smul`: linearity of evaluation, given an `R`-module.
+* `smeval_mul`, `smeval_comp`: multiplicativity of evaluation, given power-associativity.
+* `eval₂_smulOneHom_eq_smeval`, `leval_eq_smeval.linearMap`,
+  `aeval_eq_smeval`, etc.: comparisons
+
+## TODO
+
+* `smeval_neg` and `smeval_intCast` for `R` a ring and `S` an `AddCommGroup`.
+* Nonunital evaluation for polynomials with vanishing constant term for `Pow S ℕ+` (different file?)
+
+-/
+
+namespace Polynomial
+
+section MulActionWithZero
+
+variable {R : Type*} [Semiring R] (r : R) (p : R[X]) {S : Type*} [AddCommMonoid S] [Pow S ℕ]
+  [MulActionWithZero R S] (x : S)
+
+/-- Scalar multiplication together with taking a natural number power. -/
+/-- Scalar multiplication together with taking a natural number power. -/
+def smul_pow : ℕ → R → S := by sorry
+
+
+/-- Evaluate a polynomial `p` in the scalar semiring `R` at an element `x` in the target `S` using
+scalar multiple `R`-action. -/
+irreducible_def smeval : S := p.sum (smul_pow x)
+
+@[target] theorem smeval_eq_sum : p.smeval x = p.sum (smul_pow x) := by sorry
+
+
+@[target] theorem smeval_C : (C r).smeval x = r • x ^ 0 := by
+  sorry
+
+
+@[simp]
+theorem smeval_monomial (n : ℕ) :
+    (monomial n r).smeval x = r • x ^ n := by
+  simp only [smeval_eq_sum, smul_pow, zero_smul, sum_monomial_index]
+
+theorem eval_eq_smeval : p.eval r = p.smeval r := by
+  rw [eval_eq_sum, smeval_eq_sum]
+  rfl
+
+theorem eval₂_smulOneHom_eq_smeval (R : Type*) [Semiring R] {S : Type*} [Semiring S] [Module R S]
+    [IsScalarTower R S S] (p : R[X]) (x : S) :
+    p.eval₂ RingHom.smulOneHom x = p.smeval x := by
+  rw [smeval_eq_sum, eval₂_eq_sum]
+  congr 1 with e a
+  simp only [RingHom.smulOneHom_apply, smul_one_mul, smul_pow]
+
+variable (R)
+
+@[target] theorem smeval_zero : (0 : R[X]).smeval x = 0 := by
+  sorry
+
+
+@[target] theorem smeval_one : (1 : R[X]).smeval x = 1 • x ^ 0 := by
+  sorry
+
+
+@[target] theorem smeval_X :
+    (X : R[X]).smeval x = x ^ 1 := by
+  sorry
+
+
+@[target] theorem smeval_X_pow {n : ℕ} :
+    (X ^ n : R[X]).smeval x = x ^ n := by
+  sorry
+
+
+end MulActionWithZero
+
+section Module
+
+variable (R : Type*) [Semiring R] (p q : R[X]) {S : Type*} [AddCommMonoid S] [Pow S ℕ] [Module R S]
+  (x : S)
+
+@[simp]
+theorem smeval_add : (p + q).smeval x = p.smeval x + q.smeval x := by
+  simp only [smeval_eq_sum, smul_pow]
+  refine sum_add_index p q (smul_pow x) (fun _ ↦ ?_) (fun _ _ _ ↦ ?_)
+  · rw [smul_pow, zero_smul]
+  · rw [smul_pow, smul_pow, smul_pow, add_smul]
+
+@[target] theorem smeval_natCast (n : ℕ) : (n : R[X]).smeval x = n • x ^ 0 := by
+  sorry
+
+
+@[target] theorem smeval_smul (r : R) : (r • p).smeval x = r • p.smeval x := by
+  sorry
+
+
+/-- `Polynomial.smeval` as a linear map. -/
+def smeval.linearMap : R[X] →ₗ[R] S where
+  toFun f := f.smeval x
+  map_add' f g := by simp only [smeval_add]
+  map_smul' c f := by simp only [smeval_smul, smul_eq_mul, RingHom.id_apply]
+
+@[simp]
+theorem smeval.linearMap_apply : smeval.linearMap R x p = p.smeval x := rfl
+
+@[target] theorem leval_coe_eq_smeval {R : Type*} [Semiring R] (r : R) :
+    ⇑(leval r) = fun p => p.smeval r := by
+  sorry
+
+
+theorem leval_eq_smeval.linearMap {R : Type*} [Semiring R] (r : R) :
+    leval r = smeval.linearMap R r := by
+  refine LinearMap.ext ?_
+  intro
+  rw [leval_apply, smeval.linearMap_apply, eval_eq_smeval]
+
+end Module
+
+section Neg
+
+variable (R : Type*) [Ring R] {S : Type*} [AddCommGroup S] [Pow S ℕ] [Module R S] (p q : R[X])
+  (x : S)
+
+@[target] theorem smeval_neg : (-p).smeval x = - p.smeval x := by
+  sorry
+
+
+@[target] theorem smeval_sub : (p - q).smeval x = p.smeval x - q.smeval x := by
+  sorry
+
+
+theorem smeval_neg_nat (S : Type*) [NonAssocRing S] [Pow S ℕ] [NatPowAssoc S] (q : ℕ[X])
+    (n : ℕ) : q.smeval (-(n : S)) = q.smeval (-n : ℤ) := by
+  rw [smeval_eq_sum, smeval_eq_sum]
+  simp only [Polynomial.smul_pow, sum_def, Int.cast_sum, Int.cast_mul, Int.cast_npow]
+  refine Finset.sum_congr rfl ?_
+  intro k _
+  rw [show -(n : S) = (-n : ℤ) by simp only [Int.cast_neg, Int.cast_natCast], nsmul_eq_mul,
+    ← AddGroupWithOne.intCast_ofNat, ← Int.cast_npow, ← Int.cast_mul, ← nsmul_eq_mul]
+
+end Neg
+
+section NatPowAssoc
+
+/-!
+In the module docstring for algebras at `Mathlib.Algebra.Algebra.Basic`, we see that
+`[CommSemiring R] [Semiring S] [Module R S] [IsScalarTower R S S] [SMulCommClass R S S]` is an
+equivalent way to express `[CommSemiring R] [Semiring S] [Algebra R S]` that allows one to relax
+the defining structures independently.  For non-associative power-associative algebras (e.g.,
+octonions), we replace the `[Semiring S]` with `[NonAssocSemiring S] [Pow S ℕ] [NatPowAssoc S]`.
+-/
+
+variable (R : Type*) [Semiring R] (r : R) (p q : R[X]) {S : Type*}
+  [NonAssocSemiring S] [Module R S] [Pow S ℕ] (x : S)
+
+@[target] theorem smeval_C_mul : (C r * p).smeval x = r • p.smeval x := by
+  sorry
+
+
+variable [NatPowAssoc S]
+
+theorem smeval_at_natCast (q : ℕ[X]) : ∀(n : ℕ), q.smeval (n : S) = q.smeval n := by
+  induction q using Polynomial.induction_on' with
+  | h_add p q ph qh =>
+    intro n
+    simp only [add_mul, smeval_add, ph, qh, Nat.cast_add]
+  | h_monomial n a =>
+    intro n
+    rw [smeval_monomial, smeval_monomial, nsmul_eq_mul, smul_eq_mul, Nat.cast_mul, Nat.cast_npow]
+
+@[target] theorem smeval_at_zero : p.smeval (0 : S) = (p.coeff 0) • (1 : S)  := by
+  sorry
+
+
+section
+variable [SMulCommClass R S S]
+
+@[target] theorem smeval_X_mul : (X * p).smeval x = x * p.smeval x := by
+    sorry
+
+
+@[target] theorem smeval_X_pow_assoc (m n : ℕ) :
+    x ^ m * x ^ n * p.smeval x = x ^ m * (x ^ n * p.smeval x) := by
+  sorry
+
+
+@[target] theorem smeval_X_pow_mul : ∀ (n : ℕ), (X^n * p).smeval x = x^n * p.smeval x
+  | 0 => by
+    sorry
+
+
+theorem smeval_monomial_mul (n : ℕ) :
+    (monomial n r * p).smeval x = r • (x ^ n * p.smeval x) := by
+  induction p using Polynomial.induction_on' with
+  | h_add r s hr hs =>
+    simp only [add_comp, hr, hs, smeval_add, add_mul]
+    rw [← C_mul_X_pow_eq_monomial, mul_assoc, smeval_C_mul, smeval_X_pow_mul, smeval_add]
+  | h_monomial n a =>
+    rw [smeval_monomial, monomial_mul_monomial, smeval_monomial, npow_add, mul_smul, mul_smul_comm]
+
+end
+
+variable [IsScalarTower R S S]
+
+@[target] theorem smeval_mul_X : (p * X).smeval x = p.smeval x * x := by
+    sorry
+
+
+@[target] theorem smeval_assoc_X_pow (m n : ℕ) :
+    p.smeval x * x ^ m * x ^ n = p.smeval x * (x ^ m * x ^ n) := by
+  sorry
+
+
+@[target] theorem smeval_mul_X_pow : ∀ (n : ℕ), (p * X^n).smeval x = p.smeval x * x^n
+  | 0 => by
+    sorry
+
+
+variable [SMulCommClass R S S]
+
+@[target] theorem smeval_mul : (p * q).smeval x  = p.smeval x * q.smeval x := by
+  sorry
+
+
+@[target] theorem smeval_pow : ∀ (n : ℕ), (p^n).smeval x = (p.smeval x)^n
+  | 0 => by
+    sorry
+
+
+@[target] theorem smeval_comp : (p.comp q).smeval x  = p.smeval (q.smeval x) := by
+  sorry
+
+
+end NatPowAssoc
+
+section Commute
+
+variable (R : Type*) [Semiring R] (p q : R[X]) {S : Type*} [Semiring S]
+  [Module R S] [IsScalarTower R S S] [SMulCommClass R S S] {x y : S}
+
+@[target] theorem smeval_commute_left (hc : Commute x y) : Commute (p.smeval x) y := by
+  sorry
+
+
+@[target] theorem smeval_commute (hc : Commute x y) : Commute (p.smeval x) (q.smeval y) := by
+  sorry
+
+
+end Commute
+
+section Algebra
+
+theorem aeval_eq_smeval {R : Type*} [CommSemiring R] {S : Type*} [Semiring S] [Algebra R S]
+    (x : S) (p : R[X]) : aeval x p = p.smeval x := by
+  rw [aeval_def, eval₂_def, Algebra.algebraMap_eq_smul_one', smeval_def]
+  simp only [Algebra.smul_mul_assoc, one_mul]
+  exact rfl
+
+@[target] theorem aeval_coe_eq_smeval {R : Type*} [CommSemiring R] {S : Type*} [Semiring S] [Algebra R S]
+    (x : S) : ⇑(aeval x) = fun (p : R[X]) => p.smeval x := by sorry
+
+
+end Algebra
+
+end Polynomial
